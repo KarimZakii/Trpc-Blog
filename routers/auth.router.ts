@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { publicProcedure, t } from "../trpc";
 import { z } from "zod";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 
 export const authRouter = t.router({
   register: publicProcedure
@@ -40,8 +41,11 @@ export const authRouter = t.router({
           code: "UNAUTHORIZED",
         });
       }
-      //Todo. Hash password befor saving it to database
-      const registeredUser = await ctx.prisma.user.create({ data: input });
+      const hashedPw = await bcrypt.hash(input.password, 10);
+
+      const registeredUser = await ctx.prisma.user.create({
+        data: { ...input, password: hashedPw },
+      });
       return {
         registeredUser: { id: registeredUser.id, name: registeredUser.name },
       };
@@ -73,7 +77,8 @@ export const authRouter = t.router({
           code: "NOT_FOUND",
         });
       }
-      if (user.password != input.password) {
+      const isEqual = await bcrypt.compare(input.password, user.password);
+      if (!isEqual) {
         throw new TRPCError({
           message:
             "Wrong credentials , Please check your email and password again",
