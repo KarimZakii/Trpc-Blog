@@ -2,7 +2,7 @@ import { z } from "zod";
 import { protectedProcedure, publicProcedure, t } from "../trpc";
 import { TRPCError } from "@trpc/server";
 
-const PostSchema = z.object({
+const PostsSchema = z.object({
   posts: z.array(
     z.object({
       id: z.number(),
@@ -26,7 +26,7 @@ export const postRouter = t.router({
     .input(
       z.object({ page: z.number()?.default(10), limit: z.number()?.default(1) })
     )
-    .output(PostSchema)
+    .output(PostsSchema)
     .query(async ({ ctx }) => {
       const posts = await ctx.prisma.post.findMany();
       return { posts };
@@ -130,5 +130,24 @@ export const postRouter = t.router({
         where: { id: input.id },
       });
       return { message: "Post deleted successfully" };
+    }),
+  userRelatedPosts: protectedProcedure
+    .meta({
+      openapi: {
+        method: "POST",
+        path: "/userposts",
+        tags: ["posts"],
+        summary: "finding user related posts",
+      },
+    })
+    .input(
+      z.object({ page: z.number()?.default(10), limit: z.number()?.default(1) })
+    )
+    .output(PostsSchema)
+    .query(async ({ ctx }) => {
+      const posts = await ctx.prisma.post.findMany({
+        where: { authorId: ctx.user.id },
+      });
+      return { posts };
     }),
 });
